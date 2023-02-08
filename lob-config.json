@@ -1,0 +1,8 @@
+{
+	"jdbcUrl": "jdbc:oracle:thin:@server:1521:SID",
+	"user" :"username",
+	"password" : "password",
+	"lobType" : "CLOB",
+	"sqlStmt" : "UPDATE LOB_TEST SET CLOB_FILE=? WHERE ID=1",
+	"lobFile" : "C:/test/abc.xml"
+}
