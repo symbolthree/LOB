@@ -1,14 +1,20 @@
 # LOB  - a CLI tool to download and update LOB in Oracle table
 
 ## Usage
+
+### Windows
 `
 LOB.exe -config [config file]
 `
+### Linux/Unix
+`
+java -jar lob-1.0.jar -config [config file]
+`
 
-Default config file is `lob-config.json` under the same folder, if `-config` is not specified.
+- Default config file is `lob-config.json` under the same folder, if `-config` is not specified.
 
 ## Prerequisite
-- JRE 8 or higher.  `LOB` is a Java executable program.
+- JRE 8 or higher.  `LOB.exe` is a Java executable program.
 
 ## Sample config file
 
