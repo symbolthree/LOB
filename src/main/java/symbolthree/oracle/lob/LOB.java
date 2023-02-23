@@ -38,12 +38,17 @@ import org.apache.commons.cli.ParseException;
 public class LOB {
 	
 	private static String defaultConfig = "lob-config.json";
-	private String sqlStmt;
-	private String lobFile;
-	private String jdbcUrl;
-	private String user;
-	private String password;
-	private String lobType;
+	//private String sqlStmt;
+	private String lobFile="";
+	private String jdbcUrl="";
+	private String user="";
+	private String password="";
+	private String lobType="";
+	private String action="";
+	private String column="";
+	private String table="";
+	private String where="";
+	
 	Options options = new Options();	
 	private Connection conn;
 	private int LOB_READ_CHUNK_SIZE = 2048;
@@ -73,6 +78,10 @@ public class LOB {
 			System.exit(1);
 		}
 
+		if (!lob.checkParameters()) {
+			System.exit(1);
+		}
+		
 		try {
 			Instant start = Instant.now();
 			lob.execute();
@@ -89,14 +98,14 @@ public class LOB {
 	}
 
 	private void execute() throws SQLException, IOException {
-		if (sqlStmt.toUpperCase().startsWith("SELECT")) {
-			System.out.println("Download LOB...");
+		if (action.equalsIgnoreCase("SELECT")) {
+			System.out.println("Download LOB from column " + column + " of table " + table + " ...");
 			executeSelect();
-		} else if (sqlStmt.toUpperCase().startsWith("UPDATE")) {
-			System.out.println("Updating LOB...");			
+		} else if (action.equalsIgnoreCase("UPDATE")) {
+			System.out.println("Updating LOB of column " + column + " of table " + table + " ...");			
 			executeUpdate();
 		} else {
-			System.out.println("Not a select or update statement");			
+			System.out.println("Action must be SELECT or UPDATE");			
 		}
 		
 	}
@@ -108,6 +117,12 @@ public class LOB {
 	    } else {
 	    	configFile = new File(System.getProperty("user.dir"), defaultConfig);	    	
         }
+		
+		if (!configFile.exists()) {
+			System.out.println("Unable to find " + configFile.getAbsolutePath());
+			System.exit(1);
+		}
+		
 		System.out.println("Reading config " + configFile.getAbsolutePath());			
         Gson gson = new Gson();
 		BufferedReader br = new BufferedReader(new FileReader(configFile));
@@ -117,31 +132,19 @@ public class LOB {
 	    user     = (String)map.get("user");
 	    password = (String)map.get("password");
 	    lobType  = (String)map.get("lobType");
-	    sqlStmt  = (String)map.get("sqlStmt");
-	    lobFile  = (String)map.get("lobFile");
+	    action   = (String)map.get("action");
+	    column   = (String)map.get("column");
+	    table    = (String)map.get("table");
+	    where    = (String)map.get("where");
+	    lobFile  = (String)map.get("lobFile");	    
 	    
 	    br.close();
 	}
 
-	private String rewriteSQL() {
-		String newSQL = sqlStmt;
-		
-		int pos = sqlStmt.toUpperCase().indexOf("SELECT");
-		int nextPos = sqlStmt.indexOf(" ", 7);
-		String colName = sqlStmt.substring(pos+7, nextPos);
-		
-		pos = sqlStmt.toUpperCase().indexOf("FROM");
-		
-		newSQL = "SELECT " + colName + ", DBMS_LOB.GETLENGTH(" + colName + ") " + sqlStmt.substring(pos);
-		
-		return newSQL;
-		//System.out.println("\tnew sql is " + newSQL);
-	}
-	
 	private void executeSelect() throws SQLException, IOException {
 		conn = DriverManager.getConnection(jdbcUrl, user, password);
 		
-		String newSQL = rewriteSQL();
+		String newSQL = "SELECT " + column + ", DBMS_LOB.GETLENGTH(" + column + ") FROM " + table + " WHERE " + where;
 		
 		Statement stmt = conn.createStatement();
 		ResultSet rs = stmt.executeQuery(newSQL);
@@ -222,6 +225,8 @@ public class LOB {
 	
 	private void executeUpdate() throws SQLException, IOException {
 		conn = DriverManager.getConnection(jdbcUrl, user, password);
+		String sqlStmt = "UPDATE " + table + "SET " + column + "=? WHERE " + where;
+		
 		PreparedStatement ps = conn.prepareStatement(sqlStmt);
 		System.out.println("\tlobType is " + lobType);
 		System.out.println("\tlobFile is " + lobFile);
@@ -257,15 +262,22 @@ public class LOB {
 				.desc("DB user").build());
 		options.addOption(Option.builder("password").hasArg().required(false)
 				.desc("DB password").build());
+		options.addOption(Option.builder("action").hasArg().required(false)
+				.desc("SELECT or UPDATE").build());
 		options.addOption(Option.builder("lobType").hasArg().required(false)
 				.desc("CLOB or BLOB. It is used for UPDATE statement only").build());
-		options.addOption(Option.builder("sqlStmt").hasArg().required(false)
-				.desc("SELECT or UPDATE statement of a particular LOB value").build());
+		options.addOption(Option.builder("column").hasArg().required(false)
+				.desc("LOB column name").build());
+		options.addOption(Option.builder("table").hasArg().required(false)
+				.desc("target table or view name").build());
+		options.addOption(Option.builder("where").hasArg().required(false)
+				.desc("where clause to identify this LOB value").build());
 		options.addOption(Option.builder("lobFile").hasArg().required(false)
 				.desc("full file path of the output file for SELECT stmt; input file for UPDATE stmt").build());
 		options.addOption("help", false, "show help");
 
 		if (args != null && args.length > 0 && ! args[0].startsWith("-")) {
+			System.out.println("Unknown argument " + Arrays.toString(args));
 			showHelp();
 			System.exit(0);			
 		}
@@ -283,15 +295,33 @@ public class LOB {
 		if (cmd.hasOption("jdbcUrl")) jdbcUrl   = cmd.getOptionValue("jdbcUrl").trim();
 		if (cmd.hasOption("user")) user         = cmd.getOptionValue("user").trim();
 		if (cmd.hasOption("password")) password = cmd.getOptionValue("password").trim();
+		if (cmd.hasOption("action")) action     = cmd.getOptionValue("action").trim();		
 		if (cmd.hasOption("lobType")) lobType   = cmd.getOptionValue("lobType").trim();
-		if (cmd.hasOption("sqlStmt")) sqlStmt   = cmd.getOptionValue("sqlStmt").trim();
 		if (cmd.hasOption("lobFile")) lobFile   = cmd.getOptionValue("lobFile").trim();
+		if (cmd.hasOption("column")) lobFile    = cmd.getOptionValue("column").trim();
+		if (cmd.hasOption("table")) lobFile     = cmd.getOptionValue("table").trim();
+		if (cmd.hasOption("where")) lobFile     = cmd.getOptionValue("where").trim();
 		
 		if (cmd.hasOption("help")) {
 			showHelp();
 			System.exit(0);
 		}
 	}
+	
+    private boolean checkParameters() {
+    	if (jdbcUrl.equals("") || 
+			user.equals("") ||
+			password.equals("") ||
+			action.equals("") ||
+			lobFile.equals("") ||
+			column.equals("") ||
+			table.equals("")) {
+    		System.out.println("One or more missing parameter: jdbcUrl, user, password, action, column, table, lobFile");
+    		return false;
+    	}
+    	return true;
+    }
+    		
 	
 	private void showHelp() {
 		HelpFormatter help = new HelpFormatter();
