@@ -309,13 +309,13 @@ public class LOB {
 	}
 	
     private boolean checkParameters() {
-    	if (jdbcUrl.equals("") || 
-			user.equals("") ||
-			password.equals("") ||
-			action.equals("") ||
-			lobFile.equals("") ||
-			column.equals("") ||
-			table.equals("")) {
+    	if (jdbcUrl == null  || jdbcUrl.isEmpty()   || 
+			user == null     || user.isEmpty()      ||
+			password == null ||  password.isEmpty() ||
+			action == null   || action.isEmpty()    ||
+			lobFile == null  || lobFile.isEmpty()   ||
+			column == null   || column.isEmpty()    ||
+			table == null    || table.isEmpty()) {
     		System.out.println("One or more missing parameter: jdbcUrl, user, password, action, column, table, lobFile");
     		return false;
     	}
