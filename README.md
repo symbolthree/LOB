@@ -41,11 +41,11 @@ java -jar lob-1.5.jar -config [config file]
 |user   |username|
 |password   |password|
 |action   |SELECT or UPDATE|
-|lobType   |CLOB or BLOB. Used when action=UPDATE|
+|lobType   |CLOB or BLOB. For action=UPDATE only. SELECT action is able to identify it's type|
 |column   |LOB column name|
 |table   |Table or View name|
-|where   |where clause which identifies your target LOB colum|
-|lobFile   |full path or current folder of the download LOB or the UPDATE LOB file|
+|where   |where clause which identifies your target LOB column|
+|lobFile   |full path or current folder of the download LOB file or the LOB file to be updated to|
 
 ## CLI arguments
 
@@ -66,11 +66,12 @@ usage: LOB
 
 ## How to Use
 - Choose `action` as `SELECT` or `UPDATE`
-- Specify `column`, `table`, and `where` parameter to identify which LOB value you want to download or update
+- Specify `column`, `table`, and `where` parameters to identify which LOB value you want to download or update
 - To make it more script-friendly, one can provide a template config file with `jdbcUrl`, `user`, `password`, `action`, `column` and `table`, and pass the argument `where` and `lobFile` to override the values in this template, e.g.
 
     <pre>
     LOB.exe -config template.json -where "ID=101" -lobFile 101.xml
     LOB.exe -config template.json -where "ID=102" -lobFile 102.xml
-    </pre>
-- This program only run on the first selected LOB column value, and then exit. So if the where clause gives multiple rows, only the first one will be used.
+	</pre>
+
+- This program only run on the first selected LOB column value, and then exit. So if the where clause gives multiple rows, only the first one will be processed.
