@@ -293,14 +293,14 @@ public class LOB {
 		readConfigFile(config);		
 		
 		if (cmd.hasOption("jdbcUrl")) jdbcUrl   = cmd.getOptionValue("jdbcUrl").trim();
-		if (cmd.hasOption("user")) user         = cmd.getOptionValue("user").trim();
+		if (cmd.hasOption("user"))     user     = cmd.getOptionValue("user").trim();
 		if (cmd.hasOption("password")) password = cmd.getOptionValue("password").trim();
-		if (cmd.hasOption("action")) action     = cmd.getOptionValue("action").trim();		
-		if (cmd.hasOption("lobType")) lobType   = cmd.getOptionValue("lobType").trim();
-		if (cmd.hasOption("lobFile")) lobFile   = cmd.getOptionValue("lobFile").trim();
-		if (cmd.hasOption("column")) lobFile    = cmd.getOptionValue("column").trim();
-		if (cmd.hasOption("table")) lobFile     = cmd.getOptionValue("table").trim();
-		if (cmd.hasOption("where")) lobFile     = cmd.getOptionValue("where").trim();
+		if (cmd.hasOption("action"))   action   = cmd.getOptionValue("action").trim();		
+		if (cmd.hasOption("lobType"))  lobType  = cmd.getOptionValue("lobType").trim();
+		if (cmd.hasOption("lobFile"))  lobFile  = cmd.getOptionValue("lobFile").trim();
+		if (cmd.hasOption("column"))   column   = cmd.getOptionValue("column").trim();
+		if (cmd.hasOption("table"))    table    = cmd.getOptionValue("table").trim();
+		if (cmd.hasOption("where"))    where    = cmd.getOptionValue("where").trim();
 		
 		if (cmd.hasOption("help")) {
 			showHelp();
