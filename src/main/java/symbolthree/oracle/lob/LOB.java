@@ -140,7 +140,7 @@ public class LOB {
 	    jdbcUrl  = (String)map.get("jdbcUrl");
 	    user     = (String)map.get("user");
 	    password = (String)map.get("password");
-	    lobType  = (String)map.get("lobType");
+	    //lobType  = (String)map.get("lobType");
 	    action   = (String)map.get("action");
 	    column   = (String)map.get("column");
 	    table    = (String)map.get("table");
@@ -150,6 +150,7 @@ public class LOB {
 	    
 	    br.close();
 	}
+
 
 	private void executeSelect() throws SQLException, IOException {
 		conn = DriverManager.getConnection(jdbcUrl, user, password);
@@ -163,7 +164,7 @@ public class LOB {
 		int colType = md.getColumnType(1);
 		
 		String colTypeName = JDBCType.valueOf(colType).getName();
-		//System.out.println("\tlobType is " + colTypeName);
+		System.out.println("\tlobType is " + colTypeName);
 		System.out.println("\tlobFilePath is " + lobFilePath);
 		System.out.println("\tlobFile is " + lobFileName);
 
@@ -237,16 +238,26 @@ public class LOB {
 	
 	private void executeUpdate() throws SQLException, IOException {
 		conn = DriverManager.getConnection(jdbcUrl, user, password);
-		String sqlStmt = "UPDATE " + table + "SET " + column + "=? WHERE " + where;
+		
+		String newSQL = "SELECT " + column + " FROM " + table + " WHERE " + where;
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(newSQL);
+		ResultSetMetaData md = rs.getMetaData();
+		
+		int colType = md.getColumnType(1);
+		String colTypeName = JDBCType.valueOf(colType).getName();
+		rs.close();
+		
+		String sqlStmt = "UPDATE " + table + " SET " + column + "=? WHERE " + where;
 		
 		PreparedStatement ps = conn.prepareStatement(sqlStmt);
-		System.out.println("\tlobType is " + lobType);
-		//System.out.println("\tlobFile is " + lobFile);
+		System.out.println("\tlobType is " + colTypeName);
 		System.out.println("\tlobFilePath is " + lobFilePath);
 		System.out.println("\tlobFile is " + lobFileName);
+		lobFile = (new File(lobFilePath, lobFileName)).getAbsolutePath();
 		System.out.println("\tlobFile length is " + String.format("%,d bytes", new File(lobFile).length()));
 		
-		if (lobType.equals("CLOB")) {
+		if (colTypeName.equals("CLOB")) {
 			BufferedReader reader = new BufferedReader(new FileReader(lobFile));
 			ps.setClob(1, reader);
 			ps.executeUpdate();
@@ -255,7 +266,7 @@ public class LOB {
 			conn.close();
 		}
 		
-		if (lobType.equals("BLOB")) {
+		if (colTypeName.equals("BLOB")) {
 			BufferedInputStream reader = new BufferedInputStream(new FileInputStream(lobFile));
 			ps.setBlob(1, reader);
 			ps.executeUpdate();
@@ -279,7 +290,7 @@ public class LOB {
 		options.addOption(Option.builder("action").hasArg().required(false)
 				.desc("SELECT or UPDATE").build());
 		options.addOption(Option.builder("lobType").hasArg().required(false)
-				.desc("CLOB or BLOB. It is used for UPDATE statement only").build());
+				.desc("Obseleted.").build());
 		options.addOption(Option.builder("column").hasArg().required(false)
 				.desc("LOB column name").build());
 		options.addOption(Option.builder("table").hasArg().required(false)
@@ -287,7 +298,7 @@ public class LOB {
 		options.addOption(Option.builder("where").hasArg().required(false)
 				.desc("where clause to identify this LOB value").build());
 		options.addOption(Option.builder("lobFile").hasArg().required(false)
-				.desc("full file path of the output file for SELECT stmt; input file for UPDATE stmt").build());
+				.desc("Obseleted. Use lobFilePath and lobFileName").build());
 		options.addOption(Option.builder("lobFilePath").hasArg().required(false)
 				.desc("file path of the output file for SELECT stmt; input file for UPDATE stmt").build());
 		options.addOption(Option.builder("lobFileName").hasArg().required(false)
@@ -372,7 +383,6 @@ public class LOB {
 	  sub = StringSubstitutor.createInterpolator();
 	  str = sub.replace(str);
 	  
-	  System.out.println(_lobFileName + " =>" + str);
 	  return str;
 	}
 }	
