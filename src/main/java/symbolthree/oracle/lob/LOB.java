@@ -61,8 +61,10 @@ public class LOB {
 	
 	public static void main(String[] args) {
 		
-		String banner = "\r\n***** L O B *****\r\n";
-		
+		String banner = "\r\n***** L O B *****\r\n"
+		              + "Version: @build.version@.@build.number@ \r\n"
+		              + "Build Date: @build.time@\r\n"
+		              + "*****************\r\n";
 		System.out.println(banner);
 		
 		try {
@@ -334,12 +336,21 @@ public class LOB {
 		
 		// Obsoleted, backward support only
 		if (cmd.hasOption("lobFile"))  lobFile  = cmd.getOptionValue("lobFile").trim();
-		
+		 
 		// 2.0
+		
 	    if (cmd.hasOption("lobFilePath"))  lobFilePath  = cmd.getOptionValue("lobFilePath").trim();
-		if (lobFilePath.isEmpty()) lobFilePath = System.getProperty("user.dir");
+		
+		if (lobFilePath==null || lobFilePath.isEmpty()) lobFilePath = System.getProperty("user.dir");
 
-		if (cmd.hasOption("lobFileName"))  lobFileName  = cmd.getOptionValue("lobFileName").trim();
+		if (cmd.hasOption("lobFileName"))  lobFileName = cmd.getOptionValue("lobFileName").trim();
+
+        if (lobFileName==null || lobFileName.isEmpty()) {
+			System.out.println("Cannot find lobFileName value");
+			showHelp();
+			System.exit(0);
+		}
+		
 		lobFileName = resolveFileName(lobFileName);
 
 		if (cmd.hasOption("help")) {
