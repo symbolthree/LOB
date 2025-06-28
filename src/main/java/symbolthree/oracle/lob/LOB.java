@@ -23,9 +23,11 @@ import java.sql.Statement;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 
 import com.google.gson.Gson;
+import com.google.gson.stream.MalformedJsonException;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
@@ -35,11 +37,15 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 
+import org.apache.commons.text.StringSubstitutor;
+
 public class LOB {
 	
 	private static String defaultConfig = "lob-config.json";
 	//private String sqlStmt;
 	private String lobFile="";
+	private String lobFileName="";
+	private String lobFilePath="";
 	private String jdbcUrl="";
 	private String user="";
 	private String password="";
@@ -55,8 +61,10 @@ public class LOB {
 	
 	public static void main(String[] args) {
 		
-		String banner = "\r\n***** L O B *****\r\n";
-		
+		String banner = "\r\n***** L O B *****\r\n"
+		              + "Version: @build.version@.@build.number@ \r\n"
+		              + "Build Date: @build.time@\r\n"
+		              + "*****************\r\n";
 		System.out.println(banner);
 		
 		try {
@@ -73,11 +81,14 @@ public class LOB {
 			System.out.println("Error of processing arguments");
 			lob.showHelp();
 			System.exit(1);
+		} catch (MalformedJsonException mje) {
+			System.out.println("Config is not valid JSON file");
+			System.exit(1);
 		} catch (IOException ioe) {
 			System.out.println("Unable to read config file");
 			System.exit(1);
 		}
-
+		
 		if (!lob.checkParameters()) {
 			System.exit(1);
 		}
@@ -110,7 +121,7 @@ public class LOB {
 		
 	}
 	
-	private void readConfigFile(String _config) throws IOException {
+	private void readConfigFile(String _config) throws IOException, MalformedJsonException {
 		File configFile = null;
 		if (_config != null) {
 			configFile = new File(_config); 
@@ -131,15 +142,17 @@ public class LOB {
 	    jdbcUrl  = (String)map.get("jdbcUrl");
 	    user     = (String)map.get("user");
 	    password = (String)map.get("password");
-	    lobType  = (String)map.get("lobType");
+	    //lobType  = (String)map.get("lobType");
 	    action   = (String)map.get("action");
 	    column   = (String)map.get("column");
 	    table    = (String)map.get("table");
 	    where    = (String)map.get("where");
-	    lobFile  = (String)map.get("lobFile");	    
+	    lobFilePath = (String)map.get("lobFilePath");
+	    lobFileName = (String)map.get("lobFileName");
 	    
 	    br.close();
 	}
+
 
 	private void executeSelect() throws SQLException, IOException {
 		conn = DriverManager.getConnection(jdbcUrl, user, password);
@@ -154,6 +167,8 @@ public class LOB {
 		
 		String colTypeName = JDBCType.valueOf(colType).getName();
 		System.out.println("\tlobType is " + colTypeName);
+		System.out.println("\tlobFilePath is " + lobFilePath);
+		System.out.println("\tlobFile is " + lobFileName);
 
         int sizeWritten = 0;
         int precentageShown = 0;
@@ -165,7 +180,7 @@ public class LOB {
 			if (colTypeName.equals("CLOB")) {
 				Clob clob = rs.getClob(1);
 				if (clob != null) {
-		          File file = new File(lobFile);
+		          File file = new File(lobFilePath, lobFileName);
 		          if (file.exists()) file.delete();
 
 				  Reader reader = clob.getCharacterStream();
@@ -195,7 +210,7 @@ public class LOB {
 				Blob blob = rs.getBlob(1);
 				if (blob != null) {
 				  InputStream is = blob.getBinaryStream();
-		          File file = new File(lobFile);
+		          File file = new File(lobFilePath, lobFileName);
 		          if (file.exists()) file.delete();
 		          
 		          FileOutputStream  fos = new FileOutputStream (file);
@@ -225,14 +240,26 @@ public class LOB {
 	
 	private void executeUpdate() throws SQLException, IOException {
 		conn = DriverManager.getConnection(jdbcUrl, user, password);
-		String sqlStmt = "UPDATE " + table + "SET " + column + "=? WHERE " + where;
+		
+		String newSQL = "SELECT " + column + " FROM " + table + " WHERE " + where;
+		Statement stmt = conn.createStatement();
+		ResultSet rs = stmt.executeQuery(newSQL);
+		ResultSetMetaData md = rs.getMetaData();
+		
+		int colType = md.getColumnType(1);
+		String colTypeName = JDBCType.valueOf(colType).getName();
+		rs.close();
+		
+		String sqlStmt = "UPDATE " + table + " SET " + column + "=? WHERE " + where;
 		
 		PreparedStatement ps = conn.prepareStatement(sqlStmt);
-		System.out.println("\tlobType is " + lobType);
-		System.out.println("\tlobFile is " + lobFile);
+		System.out.println("\tlobType is " + colTypeName);
+		System.out.println("\tlobFilePath is " + lobFilePath);
+		System.out.println("\tlobFile is " + lobFileName);
+		lobFile = (new File(lobFilePath, lobFileName)).getAbsolutePath();
 		System.out.println("\tlobFile length is " + String.format("%,d bytes", new File(lobFile).length()));
 		
-		if (lobType.equals("CLOB")) {
+		if (colTypeName.equals("CLOB")) {
 			BufferedReader reader = new BufferedReader(new FileReader(lobFile));
 			ps.setClob(1, reader);
 			ps.executeUpdate();
@@ -241,7 +268,7 @@ public class LOB {
 			conn.close();
 		}
 		
-		if (lobType.equals("BLOB")) {
+		if (colTypeName.equals("BLOB")) {
 			BufferedInputStream reader = new BufferedInputStream(new FileInputStream(lobFile));
 			ps.setBlob(1, reader);
 			ps.executeUpdate();
@@ -265,7 +292,7 @@ public class LOB {
 		options.addOption(Option.builder("action").hasArg().required(false)
 				.desc("SELECT or UPDATE").build());
 		options.addOption(Option.builder("lobType").hasArg().required(false)
-				.desc("CLOB or BLOB. It is used for UPDATE statement only").build());
+				.desc("Obseleted.").build());
 		options.addOption(Option.builder("column").hasArg().required(false)
 				.desc("LOB column name").build());
 		options.addOption(Option.builder("table").hasArg().required(false)
@@ -273,7 +300,12 @@ public class LOB {
 		options.addOption(Option.builder("where").hasArg().required(false)
 				.desc("where clause to identify this LOB value").build());
 		options.addOption(Option.builder("lobFile").hasArg().required(false)
-				.desc("full file path of the output file for SELECT stmt; input file for UPDATE stmt").build());
+				.desc("Obseleted. Use lobFilePath and lobFileName").build());
+		options.addOption(Option.builder("lobFilePath").hasArg().required(false)
+				.desc("file path of the output file for SELECT stmt; input file for UPDATE stmt").build());
+		options.addOption(Option.builder("lobFileName").hasArg().required(false)
+				.desc("file name of the output file for SELECT stmt; input file for UPDATE stmt").build());
+				
 		options.addOption("help", false, "show help");
 
 		if (args != null && args.length > 0 && ! args[0].startsWith("-")) {
@@ -292,16 +324,35 @@ public class LOB {
 		}
 		readConfigFile(config);		
 		
-		if (cmd.hasOption("jdbcUrl")) jdbcUrl   = cmd.getOptionValue("jdbcUrl").trim();
+		if (cmd.hasOption("jdbcUrl"))  jdbcUrl  = cmd.getOptionValue("jdbcUrl").trim();
 		if (cmd.hasOption("user"))     user     = cmd.getOptionValue("user").trim();
 		if (cmd.hasOption("password")) password = cmd.getOptionValue("password").trim();
 		if (cmd.hasOption("action"))   action   = cmd.getOptionValue("action").trim();		
 		if (cmd.hasOption("lobType"))  lobType  = cmd.getOptionValue("lobType").trim();
-		if (cmd.hasOption("lobFile"))  lobFile  = cmd.getOptionValue("lobFile").trim();
+		
 		if (cmd.hasOption("column"))   column   = cmd.getOptionValue("column").trim();
 		if (cmd.hasOption("table"))    table    = cmd.getOptionValue("table").trim();
 		if (cmd.hasOption("where"))    where    = cmd.getOptionValue("where").trim();
 		
+		// Obsoleted, backward support only
+		if (cmd.hasOption("lobFile"))  lobFile  = cmd.getOptionValue("lobFile").trim();
+		 
+		// 2.0
+		
+	    if (cmd.hasOption("lobFilePath"))  lobFilePath  = cmd.getOptionValue("lobFilePath").trim();
+		
+		if (lobFilePath==null || lobFilePath.isEmpty()) lobFilePath = System.getProperty("user.dir");
+
+		if (cmd.hasOption("lobFileName"))  lobFileName = cmd.getOptionValue("lobFileName").trim();
+
+        if (lobFileName==null || lobFileName.isEmpty()) {
+			System.out.println("Cannot find lobFileName value");
+			showHelp();
+			System.exit(0);
+		}
+		
+		lobFileName = resolveFileName(lobFileName);
+
 		if (cmd.hasOption("help")) {
 			showHelp();
 			System.exit(0);
@@ -313,19 +364,38 @@ public class LOB {
 			user == null     || user.isEmpty()      ||
 			password == null ||  password.isEmpty() ||
 			action == null   || action.isEmpty()    ||
-			lobFile == null  || lobFile.isEmpty()   ||
+			//lobFile == null  || lobFile.isEmpty()   ||
+			lobFileName == null  || lobFileName.isEmpty()   ||
+			//lobFilePath == null  || lobFilePath.isEmpty()   ||
 			column == null   || column.isEmpty()    ||
 			table == null    || table.isEmpty()) {
-    		System.out.println("One or more missing parameter: jdbcUrl, user, password, action, column, table, lobFile");
+    		System.out.println("One or more missing parameter: jdbcUrl, user, password, action, column, table, lobFileName");
     		return false;
     	}
     	return true;
     }
     		
-	
 	private void showHelp() {
 		HelpFormatter help = new HelpFormatter();
 		help.setWidth(100);
 		help.printHelp("LOB", options);		
 	}
+	
+	// https://commons.apache.org/proper/commons-text/apidocs/org/apache/commons/text/StringSubstitutor.html
+	private String resolveFileName(String _lobFileName) {
+	  Map<String, String> valuesMap = new HashMap<>();
+	  valuesMap.put("column", column);
+	  valuesMap.put("table", table);
+	  String whereClean = where.replaceAll("\\/:*?\"\'<>|", "");
+	  valuesMap.put("where", whereClean);
+	  StringSubstitutor sub = new StringSubstitutor(valuesMap);
+	  String str = sub.replace(_lobFileName);
+	  
+	  sub = StringSubstitutor.createInterpolator();
+	  str = sub.replace(str);
+	  
+	  return str;
+	}
 }	
+
+
