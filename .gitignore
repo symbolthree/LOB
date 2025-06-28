@@ -5,3 +5,8 @@ target
 *.xml
 *.exe
 *.bat
+release
+*.json
+*.gif
+*.ico
+*.properties

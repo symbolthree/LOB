@@ -3,19 +3,17 @@
 ## Usage
 
 ### Windows
-`
-LOB.exe -config [config file]
-`
-### Linux/Unix
-`
-java -jar lob-2.0.jar -config [config file]
-`
+`LOB.exe -config [config file]`
+### Linux
+`java -jar lob-2.0.jar -config [config file]`
+
+### Note
 - Default config file is `lob-config.json` under the same folder, if `-config` is not specified.
 
-> The package contains both `LOB.exe` and `lob-2.0.jar`. Choose one which fit your needs.
+- The zip archive contains `LOB.exe` and `lob-2.0.jar`. File `LOB.exe` is Windows program launcher only.
 
 ## Prerequisite
-- JRE 8 or higher.  `LOB.exe` is a Java executable program.
+- JRE 8 or higher
 
 ## Sample config file 
 > `SELECT CLOB_FILE FROM LOB_TEST WHERE ID=1`
@@ -89,10 +87,10 @@ usage: LOB
 - Specify `column`, `table`, and `where` parameters to identify which LOB value you want to download or update
 - To make it more script-friendly, one can provide a template config file with `jdbcUrl`, `user`, `password`, `action`, `column` and `table`, and pass the argument `where` and `lobFileName` to override the values in this template, e.g.
 
-<pre>
-LOB.exe -config template.json -where "ID=101" -lobName 101.xml
-LOB.exe -config template.json -where "ID=102" -lobName 102.xml
-</pre>
+  <pre>
+  LOB.exe -config template.json -where "ID=101" -lobName 101.xml
+  LOB.exe -config template.json -where "ID=102" -lobName 102.xml
+  </pre>
 
 - This program only run on the first selected LOB column value, and then exit. So if the where clause gives multiple rows, only the first one will be processed.
 
